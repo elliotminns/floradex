@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.auth import routes as auth_routes
 from app.users import routes as user_routes
@@ -7,7 +8,12 @@ from app.plants import routes as plant_routes
 from app.identification import routes as identification_routes
 from app.plants import species_routes
 
+import os
+
 app = FastAPI(title="Floradex API")
+
+os.makedirs("static/uploads/plants", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Configure CORS to allow requests from your frontend
 origins = [

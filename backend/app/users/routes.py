@@ -51,7 +51,12 @@ async def delete_user(current_user: User = Depends(get_current_user)):
     
     try:
         # Delete all plants associated with the user
-        plants_result = db.plants.delete_many({"user_id": str(current_user.id)})
+        plants_result = db.userplants.delete_many({
+            "$or": [
+                {"user_id": str(current_user.id)},
+                {"user_id": current_user.id}  # Without string conversion
+            ]
+        })
         print(f"Deleted {plants_result.deleted_count} plants")
         
         # Delete the user

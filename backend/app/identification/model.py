@@ -1,10 +1,4 @@
-import numpy as np
-from PIL import Image
-import tensorflow as tf
-import io
-
-# Path to your trained CNN model
-#MODEL_PATH = "path/to/your/model"
+import random
 
 # In app/identification/model.py
 class PlantIdentifier:
@@ -12,22 +6,41 @@ class PlantIdentifier:
         # Comment out model loading for now
         # self.model = tf.keras.models.load_model(MODEL_PATH)
         self.model = None
-        self.class_names = [
-            "plant_type_1",
-            "plant_type_2",
-            # Add all plant types your model can identify
+        
+        # Define some mock plant types for simulation
+        self.mock_plants = [
+            {
+                "plant_type": "Monstera Deliciosa",
+                "confidence": 0.95,
+                "all_predictions": [
+                    {"plant_type": "Monstera Deliciosa", "confidence": 0.95},
+                    {"plant_type": "Pothos", "confidence": 0.03},
+                    {"plant_type": "Philodendron", "confidence": 0.02}
+                ]
+            },
+            {
+                "plant_type": "Fiddle Leaf Fig",
+                "confidence": 0.88,
+                "all_predictions": [
+                    {"plant_type": "Fiddle Leaf Fig", "confidence": 0.88},
+                    {"plant_type": "Rubber Plant", "confidence": 0.10},
+                    {"plant_type": "Bird of Paradise", "confidence": 0.02}
+                ]
+            },
+            {
+                "plant_type": "Snake Plant",
+                "confidence": 0.92,
+                "all_predictions": [
+                    {"plant_type": "Snake Plant", "confidence": 0.92},
+                    {"plant_type": "Aloe Vera", "confidence": 0.05},
+                    {"plant_type": "ZZ Plant", "confidence": 0.03}
+                ]
+            }
         ]
         
     def identify(self, image_bytes):
-        # Return mock data for now
-        return {
-            "plant_name": "Sample Plant",  # Make sure this key matches what your frontend expects
-            "probability": 95.0,           # Use probability instead of confidence for consistency
-            "other_candidates": [           # Make sure this matches what the frontend expects
-                {"plant_name": "Sample Plant", "probability": 95.0},
-                {"plant_name": "Another Plant", "probability": 5.0}
-            ]
-        }
+        # Return a random plant from our mock data
+        return random.choice(self.mock_plants)
 
 # Create a singleton instance
 plant_identifier = PlantIdentifier()

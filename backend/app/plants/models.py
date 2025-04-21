@@ -7,13 +7,13 @@ class PydanticObjectId(str):
     @classmethod
     def __get_validators__(cls):
         yield cls.validate
-    
+        
     @classmethod
     def validate(cls, v):
         if not ObjectId.is_valid(v):
             raise ValueError("Invalid ObjectId")
         return str(v)
-    
+        
     @classmethod
     def __get_pydantic_json_schema__(cls, _schema_cache):
         return {"type": "string"}
@@ -27,7 +27,8 @@ class UserPlant(BaseModel):
     name: str
     confidence: float
     all_predictions: List[Dict[str, Any]] = []
-    species_id: Optional[str] = None  # New field to reference plant species
+    species_id: Optional[str] = None  # Field to reference plant species
+    image_url: Optional[str] = None  # Added field for storing image URL
     
     model_config = {
         "populate_by_name": True,
