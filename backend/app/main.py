@@ -7,6 +7,7 @@ from app.users import routes as user_routes
 from app.plants import routes as plant_routes
 from app.identification import routes as identification_routes
 from app.plants import species_routes
+from app.plants import species
 
 import os
 
@@ -42,6 +43,11 @@ app.include_router(
     species_routes.router,
     prefix="/species",  # New endpoint for plant species
     tags=["species"]
+)
+app.include_router(
+    species.router,
+    prefix="/api/plant-species",
+    tags=["plant-species"]
 )
 
 @app.get("/")

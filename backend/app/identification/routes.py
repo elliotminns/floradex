@@ -26,22 +26,32 @@ async def identify_plant(
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, "wb") as f:
             f.write(image_bytes)
-            
+        
         # Generate URL for the saved image
         image_url = f"/static/uploads/plants/{filename}"
         
-        # Identify the plant
-        result = plant_identifier.identify(image_bytes)
-        
-        # Add the image URL to the result
-        result["image_url"] = image_url
-        
-        return result
+        try:
+            # Identify the plant - now with proper error handling
+            # This will throw an exception if MongoDB is unavailable
+            result = plant_identifier.identify(image_bytes)
+            
+            # Add the image URL to the result
+            result["image_url"] = image_url
+            
+            return result
+        except Exception as identification_error:
+            # Handle specific identification errors
+            print(f"Plant identification error: {str(identification_error)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Plant identification failed: {str(identification_error)}"
+            )
+            
     except Exception as e:
-        print(f"Identification error: {str(e)}")
+        print(f"Request processing error: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to identify plant: {str(e)}"
+            detail=f"Failed to process plant identification request: {str(e)}"
         )
 
 @router.post("/add-to-collection", response_model=dict)
@@ -59,15 +69,17 @@ async def add_to_collection(
                 status_code=400,
                 detail="Plant type is required"
             )
-            
-        # Create a new plant entry with the image URL
+        
+        # Create a new plant entry with the image URL and care information
         plant = {
             "type": plant_type,
             "user_id": current_user.id,
             "date_added": datetime.now(),
             "image_url": image_url,
             "confidence": plant_data.get("confidence", 0),
-            "all_predictions": plant_data.get("all_predictions", [])
+            "all_predictions": plant_data.get("all_predictions", []),
+            # Store care information from the identification result
+            "care_info": plant_data.get("care_info", {})
         }
         
         # Insert the plant into the plants collection
