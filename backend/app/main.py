@@ -19,16 +19,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Configure CORS to allow requests from your frontend
 origins = [
     "http://localhost:8081",        # Expo web
-    "http://localhost:19006",       # Another possible Expo web port
-    "http://localhost:3000",        # In case you use another port
-    "http://127.0.0.1:8081",        # Using IP instead of localhost
-    "exp://localhost:19000",        # Expo mobile
-    "exp://127.0.0.1:19000",        # Expo mobile with IP
+    "exp://172.20.10.7:8081"        #UWE Mobile Address
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

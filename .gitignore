@@ -1,5 +1,8 @@
-test.py
-flora.py
-floratest.py
 venv
 .env
+.migrate
+pip24.2
+_pycache_
+backend/static/uploads/plants/*.jpg
+backend/static/uploads/plants/*.jpeg
+backend/static/uploads/plants/*.png
