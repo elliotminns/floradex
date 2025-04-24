@@ -20,7 +20,7 @@ async def identify_plant(
         
         # Generate a unique filename
         filename = f"{current_user.id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
-        file_path = f"uploads/plants/{filename}"
+        file_path = f"static/uploads/plants/{filename}"
         
         # Save the image to your storage
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
