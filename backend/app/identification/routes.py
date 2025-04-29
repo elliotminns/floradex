@@ -171,7 +171,11 @@ async def add_to_collection(
             "care_info": plant_data.get("care_info", {})
         }
         
-        # Insert the plant into the userplants collection (note: not plants)
+        # If there's a Perenual image URL, store it as well
+        if plant_data.get("care_info", {}).get("perenual_image_url"):
+            plant["perenual_image_url"] = plant_data["care_info"]["perenual_image_url"]
+        
+        # Insert the plant into userplants collection
         result = db.userplants.insert_one(plant)
         plant_id = str(result.inserted_id)
         

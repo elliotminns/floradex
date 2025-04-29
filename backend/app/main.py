@@ -19,7 +19,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Configure CORS to allow requests from your frontend
 origins = [
     "http://localhost:8081",        # Expo web
-    "exp://172.20.10.7:8081"        #UWE Mobile Address
+    "exp://172.20.10.7:8081"        # UWE Mobile Address
 ]
 
 app.add_middleware(
@@ -37,12 +37,12 @@ app.include_router(plant_routes.router, prefix="/api/plants", tags=["Plants"])
 app.include_router(identification_routes.router, prefix="/api/identify", tags=["Identification"])
 app.include_router(
     species_routes.router,
-    prefix="/species",  # New endpoint for plant species
+    prefix="/api/species",  # Endpoint for plant species search
     tags=["species"]
 )
 app.include_router(
     species.router,
-    prefix="/api/plant-species",
+    prefix="/api/plant-species",  # Endpoint for plant care lookup by name
     tags=["plant-species"]
 )
 

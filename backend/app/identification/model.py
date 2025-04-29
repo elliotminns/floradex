@@ -1,9 +1,8 @@
 import requests
 import logging
 import os
-from bson import ObjectId
-from app.config import db
 from dotenv import load_dotenv
+from app.identification.perenual_api import perenual_api
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -20,45 +19,11 @@ class PlantIdentifier:
         
         if not self.api_key:
             logger.warning("PlantNet API key not found in environment variables")
-        
-        # Use the db instance from app.config
-        try:
-            self.plant_species_collection = db.plantspecies
-            logger.info("Connected to MongoDB plantspecies collection")
-        except Exception as e:
-            logger.error(f"Error accessing plantspecies collection: {e}")
-            self.plant_species_collection = None
-    
-    def _get_plant_details(self, plant_type):
-        """Retrieve plant details from MongoDB based on plant type"""
-        if self.plant_species_collection is None:
-            raise Exception("MongoDB collection unavailable")
-        
-        # First try direct lookup by name
-        plant_details = self.plant_species_collection.find_one({"name": plant_type})
-        if plant_details:
-            logger.info(f"Found plant details for: {plant_type} (direct name lookup)")
-            return plant_details
-        
-        # If not found directly, try case-insensitive search
-        plant_details = self.plant_species_collection.find_one(
-            {"name": {"$regex": f"^{plant_type}$", "$options": "i"}}
-        )
-        if plant_details:
-            logger.info(f"Found plant details for: {plant_type} (case-insensitive lookup)")
-            return plant_details
-            
-        # If no match found in database, return default info
-        logger.warning(f"No plant details found for: {plant_type}")
-        return {
-            "name": plant_type,
-            "care_instructions": "General care instructions for this plant",
-            "watering_frequency": "Check specific requirements for this species",
-            "sunlight_requirements": "Medium indirect light",
-            "humidity": "Average",
-            "temperature": "65-75°F (18-24°C)",
-            "fertilization": "As needed during growing season"
-        }
+        else:
+            # Log that we found the API key (but only show a prefix for security)
+            api_key_prefix = self.api_key[:4] if len(self.api_key) > 4 else "****"
+            logger.info(f"PlantNet API key found with prefix: {api_key_prefix}***")
+            logger.info(f"PlantNet API URL: {self.api_url}")
     
     def identify(self, image_bytes):
         """Identify plant using PlantNet API"""
@@ -101,7 +66,10 @@ class PlantIdentifier:
                 for prediction in result['results']:
                     # Extract the scientific name and score
                     scientific_name = prediction.get('species', {}).get('scientificNameWithoutAuthor', '')
+                    scientific_name_with_author = prediction.get('species', {}).get('scientificName', '')
                     common_names = prediction.get('species', {}).get('commonNames', [])
+                    genus = prediction.get('species', {}).get('genus', {}).get('scientificNameWithoutAuthor', '')
+                    family = prediction.get('species', {}).get('family', {}).get('scientificNameWithoutAuthor', '')
                     
                     # Use common name if available, otherwise use scientific name
                     display_name = common_names[0] if common_names else scientific_name
@@ -111,6 +79,10 @@ class PlantIdentifier:
                     predictions.append({
                         "plant_type": display_name,
                         "scientific_name": scientific_name,
+                        "scientific_name_with_author": scientific_name_with_author,
+                        "genus": genus,
+                        "family": family,
+                        "common_names": common_names,
                         "confidence": confidence
                     })
                 
@@ -120,25 +92,85 @@ class PlantIdentifier:
                 # Get the top prediction
                 top_prediction = predictions[0]
                 plant_type = top_prediction["plant_type"]
+                scientific_name = top_prediction["scientific_name"]
                 confidence = top_prediction["confidence"]
                 
-                # Get plant details from MongoDB
-                plant_details = self._get_plant_details(plant_type)
+                # Create a list of search terms to try with Perenual API, in order of preference
+                search_terms = []
+                
+                # Add common names from the top prediction first (if available)
+                if top_prediction.get("common_names"):
+                    search_terms.extend(top_prediction["common_names"])
+                
+                # Add the primary display name if not already in the list
+                if plant_type not in search_terms:
+                    search_terms.append(plant_type)
+                
+                # Add scientific name without author
+                if scientific_name and scientific_name not in search_terms:
+                    search_terms.append(scientific_name)
+                
+                # Add genus (which might get broader matches)
+                if top_prediction.get("genus") and top_prediction["genus"] not in search_terms:
+                    search_terms.append(top_prediction["genus"])
+                
+                # Log all the search terms we'll try
+                logger.info(f"Will try the following search terms with Perenual API: {search_terms}")
+                
+                # Try each search term with Perenual API until we get a match
+                care_details = None
+                used_search_term = None
+                
+                for term in search_terms:
+                    try:
+                        logger.info(f"Trying to find care details for '{term}' with Perenual API")
+                        care_details = perenual_api.get_plant_care_details(plant_name=term)
+                        
+                        # If we found valid care details, use this term and break the loop
+                        if care_details:
+                            # Check for default values that would indicate the API didn't have specific data
+                            is_default = (
+                                care_details.get("care_instructions") == "General care instructions not available" or
+                                care_details.get("care_instructions") == "General care instructions for this plant" or
+                                care_details.get("watering_frequency") == "Check specific requirements for this species"
+                            )
+                            
+                            if not is_default:
+                                used_search_term = term
+                                logger.info(f"Successfully found care details using search term: '{term}'")
+                                break
+                            else:
+                                logger.info(f"Found only default care details for '{term}', trying next term")
+                        else:
+                            logger.info(f"No care details found for '{term}', trying next term")
+                    except Exception as e:
+                        logger.error(f"Error searching Perenual API with term '{term}': {str(e)}")
+                        # Continue trying other terms
+                
+                # If no care details found with any term, use default
+                if not care_details or not used_search_term:
+                    logger.warning(f"Could not find specific care details with any search term. Using default care info.")
+                    care_details = perenual_api._get_default_care_info(plant_type)
+                    used_search_term = plant_type
                 
                 # Prepare the response
                 response = {
                     "plant_type": plant_type,
-                    "scientific_name": top_prediction["scientific_name"],
+                    "scientific_name": scientific_name,
                     "confidence": confidence,
                     "all_predictions": predictions[:3],  # Return top 3 predictions
-                    # Include care details from the database
+                    "search_terms_tried": search_terms,  # Include all search terms that were attempted
+                    "search_term_matched": used_search_term,  # Term that matched in Perenual API
+                    # Include care details from the Perenual API
                     "care_info": {
-                        "care_instructions": plant_details.get("care_instructions", "No care instructions available"),
-                        "watering_frequency": plant_details.get("watering_frequency", "Not specified"),
-                        "sunlight_requirements": plant_details.get("sunlight_requirements", "Not specified"),
-                        "humidity": plant_details.get("humidity", "Not specified"),
-                        "temperature": plant_details.get("temperature", "Not specified"),
-                        "fertilization": plant_details.get("fertilization", "Not specified")
+                        "care_instructions": care_details.get("care_instructions", "No care instructions available"),
+                        "watering_frequency": care_details.get("watering_frequency", "Not specified"),
+                        "sunlight_requirements": care_details.get("sunlight_requirements", "Not specified"),
+                        "humidity": care_details.get("humidity", "Not specified"),
+                        "temperature": care_details.get("temperature", "Not specified"),
+                        "fertilization": care_details.get("fertilization", "Not specified"),
+                        "description": care_details.get("description", "Not available"),
+                        "perenual_image_url": care_details.get("image_url")
                     }
                 }
                 
