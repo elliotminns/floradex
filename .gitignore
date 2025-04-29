@@ -6,3 +6,4 @@ _pycache_
 backend/static/uploads/plants/*.jpg
 backend/static/uploads/plants/*.jpeg
 backend/static/uploads/plants/*.png
+/dataset
